@@ -47,7 +47,9 @@ create_project() {
       gcloud projects create "$id" --labels=app=mini-philia
     fi
   fi
-  gcloud billing projects link "$id" --billing-account="$BILLING_ACCOUNT_ID" >/dev/null
+  if [[ "$(gcloud billing projects describe "$id" --format='value(billingEnabled)' 2>/dev/null)" != "True" ]]; then
+    gcloud billing projects link "$id" --billing-account="$BILLING_ACCOUNT_ID" >/dev/null
+  fi
 }
 
 log "Projects"
@@ -67,6 +69,9 @@ for e in "${ENVS[@]}"; do
     run.googleapis.com sqladmin.googleapis.com secretmanager.googleapis.com storage.googleapis.com \
     aiplatform.googleapis.com logging.googleapis.com monitoring.googleapis.com
 done
+# User credentials bill API quota to gcloud's shared project by default, which hits rate limits (HTTP 429).
+# From here on, bill it to our own platform project.
+export CLOUDSDK_BILLING_QUOTA_PROJECT="$PLATFORM"
 
 # ---------------------------------------------------------------- platform: registry and state
 log "Artifact Registry"
@@ -159,6 +164,8 @@ BUILDER="serviceAccount:builder@${PLATFORM}.iam.gserviceaccount.com"
 bind "$PLATFORM" "$BUILDER" roles/cloudbuild.builds.builder
 bind "$PLATFORM" "$GUARD" roles/run.invoker
 bind "$PLATFORM" "$GUARD" roles/eventarc.eventReceiver
+# Eventarc validates the trigger as its service account, which must be allowed to use the project.
+bind "$PLATFORM" "$GUARD" roles/serviceusage.serviceUsageConsumer
 TARGETS=()
 for e in "${ENVS[@]}"; do
   P="$(env_project "$e")"; TARGETS+=("$P")
