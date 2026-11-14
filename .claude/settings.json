@@ -1,0 +1,25 @@
+{
+  "permissions": {
+    "allow": [
+      "Read", "Grep", "Glob",
+      "Bash(git status:*)", "Bash(git diff:*)", "Bash(git log:*)", "Bash(git add:*)", "Bash(git commit:*)", "Bash(git checkout:*)", "Bash(git switch:*)", "Bash(git worktree:*)",
+      "Bash(npm run lint:*)", "Bash(npm run test:*)", "Bash(npm run typecheck:*)", "Bash(npx playwright test:*)",
+      "Bash(gh pr view:*)", "Bash(gh pr create:*)", "Bash(gh pr checks:*)"
+    ],
+    "deny": [
+      "Read(./.env)", "Read(./.env.*)", "Edit(./.env)", "Edit(./.env.*)",
+      "Bash(git push --force:*)", "Bash(git push origin main:*)", "Bash(gh pr merge:*)", "Bash(gh pr review --approve:*)",
+      "Bash(az deployment:*)", "Bash(az group delete:*)", "Bash(az keyvault:*)", "Bash(psql:*prod*)",
+      "Bash(curl:*)", "Bash(wget:*)"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      { "matcher": "Bash", "hooks": [ { "type": "command", "command": ".claude/hooks/block-prod.sh" } ] },
+      { "matcher": "Edit|Write", "hooks": [ { "type": "command", "command": ".claude/hooks/protect-paths.sh" } ] }
+    ],
+    "PostToolUse": [
+      { "matcher": "Edit|Write", "hooks": [ { "type": "command", "command": ".claude/hooks/after-edit.sh" } ] }
+    ]
+  }
+}

@@ -1,0 +1,92 @@
+name: agent-run
+# Starts the agent team on an issue when a person with write access adds `ready-for-agents` or `plan-approved`.
+# Agents get repo access only. No cloud credentials, no GitHub environment.
+on:
+  issues:
+    types: [labeled]
+  workflow_dispatch:
+    inputs:
+      issue:
+        description: Issue number
+        required: true
+      phase:
+        description: take or build
+        required: true
+        default: take
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+  id-token: write
+concurrency:
+  group: agent-run-${{ github.event.issue.number || inputs.issue }}
+  cancel-in-progress: false
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      github.event.label.name == 'ready-for-agents' ||
+      github.event.label.name == 'plan-approved'
+    outputs:
+      issue: ${{ steps.check.outputs.issue }}
+      phase: ${{ steps.check.outputs.phase }}
+    steps:
+      - name: Check who asked and what the issue allows
+        id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          ACTOR: ${{ github.event.sender.login || github.actor }}
+          ISSUE: ${{ github.event.issue.number || inputs.issue }}
+          LABEL: ${{ github.event.label.name }}
+          PHASE_IN: ${{ inputs.phase }}
+          PAUSED: ${{ vars.AGENTS_PAUSED }}
+          STUDIO_BOT: ${{ vars.STUDIO_APP_BOT_LOGIN }}
+        run: |
+          [[ "$ISSUE" =~ ^[0-9]+$ ]] || { echo "Invalid issue number"; exit 1; }
+          if [[ "$PAUSED" == "true" ]]; then
+            echo "Agents are paused (repository variable AGENTS_PAUSED, set from Studio Controls)."
+            gh issue comment "$ISSUE" -R "$REPO" --body "Agents are paused for this repository. The request was not started. Unpause in Studio Build Controls and add the label again."
+            exit 1
+          fi
+          # The Studio GitHub App acts as its bot login; Studio has already checked the person's product role.
+          if [[ -n "$STUDIO_BOT" && "$ACTOR" == "$STUDIO_BOT" ]]; then
+            echo "Requested through Studio ($ACTOR)"
+          else
+            perm="$(gh api "repos/$REPO/collaborators/$ACTOR/permission" --jq .permission)"
+            case "$perm" in admin|maintain|write) ;; *) echo "$ACTOR has $perm, needs write"; exit 1;; esac
+          fi
+          labels="$(gh issue view "$ISSUE" -R "$REPO" --json labels --jq '[.labels[].name] | join(",")')"
+          echo "labels: $labels"
+          [[ ",$labels," == *",agent-eligible,"* ]] || { echo "Not agent-eligible"; exit 1; }
+          [[ ",$labels," == *",data:pii,"* ]] && { echo "data:pii is never taken by agents"; exit 1; }
+          if [[ "$LABEL" == "plan-approved" || "$PHASE_IN" == "build" ]]; then phase=build; else phase=take; fi
+          echo "issue=$ISSUE" >> "$GITHUB_OUTPUT"
+          echo "phase=$phase" >> "$GITHUB_OUTPUT"
+
+  agents:
+    needs: gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - run: npm ci
+      # VERIFY input names against the current claude-code-action release notes when upgrading.
+      # The token comes from `claude setup-token` and bills to the Claude subscription, not to Google Cloud.
+      - uses: anthropics/claude-code-action@v1
+        env:
+          # Read by .claude/hooks/emit-event.mjs to stream redacted activity to Studio. Unset means no events.
+          STUDIO_INGEST_URL: ${{ vars.STUDIO_INGEST_URL }}
+          STUDIO_INGEST_TOKEN: ${{ secrets.STUDIO_INGEST_TOKEN }}
+          STUDIO_REPO: ${{ github.repository }}
+          STUDIO_ISSUE: ${{ needs.gate.outputs.issue }}
+          STUDIO_RUN_ID: ${{ github.run_id }}
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          prompt: |
+            ${{ needs.gate.outputs.phase == 'take' && format('/take {0}', needs.gate.outputs.issue) || format('Issue #{0} has the plan-approved label. Continue as the chief-of-staff from docs/plans/GH-{0}.md on branch feature/GH-{0}-*: delegate, test, challenge, then open the PR with release-manager.', needs.gate.outputs.issue) }}
+          claude_args: "--max-turns 80"

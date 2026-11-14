@@ -1,0 +1,13 @@
+node_modules/
+dist/
+.env
+.env.*
+infra/bootstrap/config.env
+infra/bootstrap/outputs.env
+infra/terraform/.terraform/
+infra/terraform/*.tfplan
+infra/terraform/tfplan
+infra/terraform/plan.txt
+*.tfstate
+*.tfstate.*
+.terraform.lock.hcl.bak

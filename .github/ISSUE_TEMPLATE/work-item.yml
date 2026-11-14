@@ -1,0 +1,40 @@
+name: Work item
+description: A unit of work for the team. Fill every field to meet the Definition of Ready.
+title: "[Work item] "
+body:
+  - type: textarea
+    id: outcome
+    attributes:
+      label: Outcome
+      description: One sentence. Who gets what, and why it matters.
+    validations: { required: true }
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      description: Testable statements. Given / when / then is fine.
+      placeholder: |
+        - [ ] ...
+    validations: { required: true }
+  - type: dropdown
+    id: risk
+    attributes:
+      label: Risk tier
+      description: See docs/process/risk-tiers.md. Also add the matching risk label.
+      options: [R0, R1, R2, R3]
+    validations: { required: true }
+  - type: dropdown
+    id: data
+    attributes:
+      label: Data class
+      description: Agents only take synthetic or masked. Also add the matching data label.
+      options: [synthetic, masked, pii]
+    validations: { required: true }
+  - type: textarea
+    id: notes
+    attributes:
+      label: Notes, links, out of scope
+  - type: markdown
+    attributes:
+      value: |
+        When ready: add `risk:*`, `data:*`, `agent-eligible`, then `ready-for-agents` to start the team.
