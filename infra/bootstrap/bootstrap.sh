@@ -185,6 +185,28 @@ else
     --notifications-rule-pubsub-topic="projects/${PLATFORM}/topics/${TOPIC}"
 fi
 
+# ---------------------------------------------------------------- Studio budget feed (optional)
+if [[ -n "${STUDIO_BUDGET_PUSH_URL:-}" ]]; then
+  log "Studio budget push"
+  PUSH_SA="budget-push@${PLATFORM}.iam.gserviceaccount.com"
+  gcloud iam service-accounts describe "$PUSH_SA" --project="$PLATFORM" >/dev/null 2>&1 ||
+    gcloud iam service-accounts create budget-push --project="$PLATFORM" --display-name="Signs budget pushes to Studio"
+  # Pub/Sub mints the OIDC token on behalf of budget-push.
+  gcloud iam service-accounts add-iam-policy-binding "$PUSH_SA" --project="$PLATFORM" \
+    --member="serviceAccount:service-${PLATFORM_NUMBER}@gcp-sa-pubsub.iam.gserviceaccount.com" \
+    --role=roles/iam.serviceAccountTokenCreator >/dev/null
+  if gcloud pubsub subscriptions describe studio-budget-push --project="$PLATFORM" >/dev/null 2>&1; then
+    gcloud pubsub subscriptions update studio-budget-push --project="$PLATFORM" \
+      --push-endpoint="$STUDIO_BUDGET_PUSH_URL" --push-auth-service-account="$PUSH_SA" \
+      --push-auth-token-audience="$STUDIO_BUDGET_PUSH_URL" >/dev/null
+  else
+    gcloud pubsub subscriptions create studio-budget-push --project="$PLATFORM" --topic="$TOPIC" \
+      --push-endpoint="$STUDIO_BUDGET_PUSH_URL" --push-auth-service-account="$PUSH_SA" \
+      --push-auth-token-audience="$STUDIO_BUDGET_PUSH_URL" --ack-deadline=30 --message-retention-duration=1d
+  fi
+  echo "Enter this push service account email in Studio Build > Settings: $PUSH_SA"
+fi
+
 # ---------------------------------------------------------------- outputs
 OUT="$HERE/outputs.env"
 {

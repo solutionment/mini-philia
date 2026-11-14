@@ -19,12 +19,23 @@
     ]
   },
   "hooks": {
+    "SessionStart": [
+      { "hooks": [ { "type": "command", "command": "node .claude/hooks/emit-event.mjs", "timeout": 5 } ] }
+    ],
     "PreToolUse": [
       { "matcher": "Bash", "hooks": [ { "type": "command", "command": ".claude/hooks/block-prod.sh" } ] },
-      { "matcher": "Edit|Write", "hooks": [ { "type": "command", "command": ".claude/hooks/protect-paths.sh" } ] }
+      { "matcher": "Edit|Write", "hooks": [ { "type": "command", "command": ".claude/hooks/protect-paths.sh" } ] },
+      { "matcher": "Task|Agent", "hooks": [ { "type": "command", "command": "node .claude/hooks/emit-event.mjs", "timeout": 5 } ] }
     ],
     "PostToolUse": [
-      { "matcher": "Edit|Write", "hooks": [ { "type": "command", "command": ".claude/hooks/after-edit.sh" } ] }
+      { "matcher": "Edit|Write", "hooks": [ { "type": "command", "command": ".claude/hooks/after-edit.sh" } ] },
+      { "matcher": "Edit|Write|MultiEdit|NotebookEdit|Bash", "hooks": [ { "type": "command", "command": "node .claude/hooks/emit-event.mjs", "timeout": 5 } ] }
+    ],
+    "SubagentStop": [
+      { "hooks": [ { "type": "command", "command": "node .claude/hooks/emit-event.mjs", "timeout": 5 } ] }
+    ],
+    "Stop": [
+      { "hooks": [ { "type": "command", "command": "node .claude/hooks/emit-event.mjs", "timeout": 5 } ] }
     ]
   }
 }
