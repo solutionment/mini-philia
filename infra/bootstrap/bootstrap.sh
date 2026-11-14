@@ -175,10 +175,10 @@ gcloud functions deploy budget-guard --project="$PLATFORM" --region="$REGION" --
 
 log "Budget"
 gcloud config set project "$PLATFORM" >/dev/null
-if gcloud billing budgets list --billing-account="$BILLING_ACCOUNT_ID" --format='value(displayName)' | grep -qx 'mini-philia-monthly'; then
+if gcloud billing budgets list --billing-project="$PLATFORM" --billing-account="$BILLING_ACCOUNT_ID" --format='value(displayName)' | grep -qx 'mini-philia-monthly'; then
   echo "budget exists"
 else
-  gcloud billing budgets create --billing-account="$BILLING_ACCOUNT_ID" --display-name=mini-philia-monthly \
+  gcloud billing budgets create --billing-project="$PLATFORM" --billing-account="$BILLING_ACCOUNT_ID" --display-name=mini-philia-monthly \
     --budget-amount="${BUDGET_USD}USD" --calendar-period=month --credit-types-treatment=exclude-all-credits \
     --threshold-rule=percent=0.25 --threshold-rule=percent=0.5 --threshold-rule=percent=0.9 \
     --threshold-rule=percent=1.0 --threshold-rule=percent=1.0,basis=forecasted-spend \
