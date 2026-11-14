@@ -1,0 +1,59 @@
+name: ci
+# Runs on every PR and on main. Holds no cloud credentials.
+on:
+  pull_request:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - name: App typecheck and tests
+        run: |
+          npm ci
+          npm run typecheck
+          npm test
+      - name: Budget guard build and tests
+        working-directory: infra/budget-guard
+        run: |
+          npm ci
+          npm run build
+          npm test
+      - uses: hashicorp/setup-terraform@v3
+        with: { terraform_version: 1.9.8 }
+      - name: Terraform fmt and validate
+        working-directory: infra/terraform
+        run: |
+          terraform fmt -check -recursive
+          terraform init -backend=false -input=false
+          terraform validate
+      - name: Container builds
+        run: docker build -f apps/api/Dockerfile -t api:ci .
+      - name: Repository structure check
+        run: |
+          test -f CLAUDE.md && test -f CODEOWNERS
+          test "$(ls .claude/agents | wc -l)" -ge 13
+      - name: No em dashes in docs
+        run: |
+          if grep -rn $'—' --include='*.md' docs README.md CLAUDE.md; then echo "Em dash found"; exit 1; fi
+      # Added by work items: pgTAP RLS tests on a Postgres service container, Playwright, axe, AI evals.
+
+  codeql:
+    # Code scanning is free on public repositories. On a private repo without GitHub Advanced Security this job is skipped.
+    if: ${{ !github.event.repository.private }}
+    runs-on: ubuntu-latest
+    permissions: { contents: read, security-events: write }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: github/codeql-action/init@v3
+        with: { languages: javascript-typescript }
+      - uses: github/codeql-action/analyze@v3

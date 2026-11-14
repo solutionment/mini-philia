@@ -1,0 +1,63 @@
+name: deploy
+# Build once, deploy to staging, smoke check, then wait for a human to approve production.
+# The only path by which anything changes in Google Cloud. Keyless: Workload Identity Federation.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "apps/**"
+      - "services/**"
+      - "db/**"
+      - "infra/terraform/**"
+      - "package-lock.json"
+      - ".github/workflows/deploy.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+  id-token: write
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+jobs:
+  build:
+    # Skip until scripts/github-setup.sh has set the variables (the first push lands before that).
+    if: ${{ vars.GCP_WIF_PROVIDER != '' }}
+    runs-on: ubuntu-latest
+    environment: staging
+    timeout-minutes: 15
+    outputs:
+      image: ${{ steps.push.outputs.image }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+          service_account: ${{ vars.GCP_DEPLOYER_SA }}
+      - uses: google-github-actions/setup-gcloud@v2
+      - name: Build and push api image
+        id: push
+        env:
+          REPO: ${{ vars.GCP_AR_REPO }}
+          REGION: ${{ vars.GCP_REGION }}
+        run: |
+          gcloud auth configure-docker "${REGION}-docker.pkg.dev" --quiet
+          tag="${REPO}/api:${GITHUB_SHA}"
+          docker build -f apps/api/Dockerfile -t "$tag" .
+          docker push "$tag"
+          digest="$(docker inspect --format='{{index .RepoDigests 0}}' "$tag")"
+          echo "image=$digest" >> "$GITHUB_OUTPUT"
+
+  staging:
+    needs: build
+    uses: ./.github/workflows/deploy-env.yml
+    with:
+      environment: staging
+      image: ${{ needs.build.outputs.image }}
+
+  production:
+    needs: [build, staging]
+    uses: ./.github/workflows/deploy-env.yml
+    with:
+      environment: production
+      image: ${{ needs.build.outputs.image }}

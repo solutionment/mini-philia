@@ -1,0 +1,51 @@
+name: deploy-env
+# Reusable: terraform apply for one environment with a given image digest, then smoke check.
+# The production GitHub environment has a required reviewer, so this job waits for a human there.
+on:
+  workflow_call:
+    inputs:
+      environment: { type: string, required: true }
+      image: { type: string, required: true }
+permissions:
+  contents: read
+  id-token: write
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: infra/terraform
+    steps:
+      - uses: actions/checkout@v4
+      - uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+          service_account: ${{ vars.GCP_DEPLOYER_SA }}
+      - uses: hashicorp/setup-terraform@v3
+        with: { terraform_version: 1.9.8, terraform_wrapper: false }
+      - name: Terraform init
+        run: terraform init -input=false -backend-config="bucket=${{ vars.TF_STATE_BUCKET }}"
+      - name: Terraform plan
+        env:
+          TF_VAR_project_id: ${{ vars.GCP_PROJECT }}
+          TF_VAR_region: ${{ vars.GCP_REGION }}
+          TF_VAR_runtime_sa_email: ${{ vars.GCP_RUNTIME_SA }}
+          TF_VAR_image: ${{ inputs.image }}
+          TF_VAR_app_version: ${{ github.sha }}
+        run: |
+          terraform plan -input=false -var-file="envs/${{ inputs.environment }}.tfvars" -out=tfplan
+          terraform show -no-color tfplan > plan.txt
+          { echo '### Terraform plan: ${{ inputs.environment }}'; echo '```'; tail -n 60 plan.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+      - name: Terraform apply
+        run: terraform apply -input=false tfplan
+      - name: Smoke check
+        run: |
+          url="$(terraform output -raw api_url)"
+          for i in $(seq 1 10); do
+            body="$(curl -fsS "$url/healthz" || true)"
+            if echo "$body" | grep -q "\"version\":\"${GITHUB_SHA}\""; then echo "ok: $body"; echo "Smoke ok: $url" >> "$GITHUB_STEP_SUMMARY"; exit 0; fi
+            sleep 6
+          done
+          echo "Smoke check failed: $body"; exit 1

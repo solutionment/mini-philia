@@ -1,0 +1,8 @@
+# Human owner approves anything that changes how agents, pipelines or controls work.
+*                         @shornung2
+/.claude/                 @shornung2
+/.github/                 @shornung2
+/infra/                   @shornung2
+/db/migrations/           @shornung2
+/docs/compliance/         @shornung2
+/CLAUDE.md                @shornung2

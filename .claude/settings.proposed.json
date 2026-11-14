@@ -1,0 +1,30 @@
+{
+  "permissions": {
+    "allow": [
+      "Read", "Grep", "Glob",
+      "Bash(git status:*)", "Bash(git diff:*)", "Bash(git log:*)", "Bash(git add:*)", "Bash(git commit:*)", "Bash(git checkout:*)", "Bash(git switch:*)", "Bash(git worktree:*)", "Bash(git push -u origin feature/:*)",
+      "Bash(npm ci:*)", "Bash(npm run lint:*)", "Bash(npm run test:*)", "Bash(npm test:*)", "Bash(npm run typecheck:*)", "Bash(npm run build:*)", "Bash(npx playwright test:*)",
+      "Bash(terraform fmt:*)", "Bash(terraform validate:*)", "Bash(terraform init -backend=false:*)",
+      "Bash(gh issue view:*)", "Bash(gh issue comment:*)", "Bash(gh issue edit:*)",
+      "Bash(gh pr view:*)", "Bash(gh pr create:*)", "Bash(gh pr checks:*)", "Bash(gh pr edit:*)"
+    ],
+    "deny": [
+      "Read(./.env)", "Read(./.env.*)", "Edit(./.env)", "Edit(./.env.*)",
+      "Read(./infra/bootstrap/config.env)", "Read(./infra/bootstrap/outputs.env)",
+      "Bash(git push --force:*)", "Bash(git push -f:*)", "Bash(git push origin main:*)",
+      "Bash(gh pr merge:*)", "Bash(gh pr review --approve:*)", "Bash(gh secret:*)", "Bash(gh variable:*)", "Bash(gh api -X PUT:*)", "Bash(gh api -X DELETE:*)",
+      "Bash(gcloud:*)", "Bash(gsutil:*)", "Bash(bq:*)",
+      "Bash(terraform apply:*)", "Bash(terraform destroy:*)", "Bash(terraform import:*)", "Bash(terraform state:*)",
+      "Bash(curl:*)", "Bash(wget:*)"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      { "matcher": "Bash", "hooks": [ { "type": "command", "command": ".claude/hooks/block-prod.sh" } ] },
+      { "matcher": "Edit|Write", "hooks": [ { "type": "command", "command": ".claude/hooks/protect-paths.sh" } ] }
+    ],
+    "PostToolUse": [
+      { "matcher": "Edit|Write", "hooks": [ { "type": "command", "command": ".claude/hooks/after-edit.sh" } ] }
+    ]
+  }
+}

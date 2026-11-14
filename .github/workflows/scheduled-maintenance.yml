@@ -1,0 +1,26 @@
+name: scheduled-maintenance
+on:
+  schedule:
+    - cron: "17 6 * * 1"   # Mondays, UTC
+  workflow_dispatch:
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+  id-token: write
+jobs:
+  maintenance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          prompt: |
+            Weekly maintenance. Use release-manager and security-compliance.
+            1. Check dependency updates and open one draft PR per ecosystem if safe.
+            2. Triage flaky tests from the last 7 days of CI and report in a new issue labeled maintenance.
+            3. Refresh docs/compliance/controls.md evidence links for PRs merged this week.
+            Open draft PRs only. Never merge.
+          claude_args: "--max-turns 30"
