@@ -63,7 +63,7 @@ function bashStatus(resp) {
 // Pure mapping from hook input to a Studio event (or null to send nothing).
 export function toEvent(input, ctx) {
   const base = {
-    v: 1, repo: ctx.repo, session_id: String(input.session_id || '').slice(0, 100),
+    v: 1, repo: ctx.repo, session_id: String(input.session_id || 'unknown').slice(0, 100),
     run_id: ctx.runId, issue: ctx.issue, agent: agentName(input), at: ctx.now,
   };
   switch (input.hook_event_name) {
@@ -126,7 +126,8 @@ async function main() {
   const runEnv = process.env.STUDIO_RUN_ID || process.env.GITHUB_RUN_ID;
   const ev = toEvent(input, {
     repo: process.env.STUDIO_REPO || process.env.GITHUB_REPOSITORY || '',
-    runId: runEnv && /^\d+$/.test(runEnv) ? runEnv : undefined,
+    // Studio's schema requires a positive integer run id.
+    runId: runEnv && /^\d+$/.test(runEnv) ? Number(runEnv) : undefined,
     issue: Number.isInteger(issueEnv) && issueEnv > 0 ? issueEnv : issueFromBranch(cwd),
     cwd,
     now: new Date().toISOString(),

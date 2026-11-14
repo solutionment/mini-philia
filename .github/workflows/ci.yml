@@ -28,6 +28,10 @@ jobs:
           npm ci
           npm run build
           npm test
+      - name: Agent hook tests
+        run: |
+          files="$(find .claude -name '*.test.mjs')"
+          if [ -n "$files" ]; then node --test $files; fi
       - uses: hashicorp/setup-terraform@v3
         with: { terraform_version: 1.9.8 }
       - name: Terraform fmt and validate
