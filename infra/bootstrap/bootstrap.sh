@@ -170,7 +170,7 @@ gcloud functions deploy budget-guard --project="$PLATFORM" --region="$REGION" --
   --trigger-topic="$TOPIC" --service-account="budget-guard@${PLATFORM}.iam.gserviceaccount.com" \
   --trigger-service-account="budget-guard@${PLATFORM}.iam.gserviceaccount.com" \
   --build-service-account="projects/${PLATFORM}/serviceAccounts/builder@${PLATFORM}.iam.gserviceaccount.com" \
-  --set-env-vars="TARGET_PROJECTS=$(IFS=,; echo "${TARGETS[*]}"),REGION=${REGION}" \
+  --set-env-vars="^;^TARGET_PROJECTS=$(IFS=,; echo "${TARGETS[*]}");REGION=${REGION}" \
   --memory=256Mi --max-instances=1 --quiet
 
 log "Budget"
