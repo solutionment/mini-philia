@@ -85,10 +85,18 @@ jobs:
           STUDIO_REPO: ${{ github.repository }}
           STUDIO_ISSUE: ${{ needs.gate.outputs.issue }}
           STUDIO_RUN_ID: ${{ github.run_id }}
+          # A CI run ends when the main agent ends its turn, and background helpers are lost with it.
+          # Keep every subagent and command in the foreground so the work reaches a commit and a PR.
+          CLAUDE_CODE_DISABLE_BACKGROUND_TASKS: "1"
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           prompt: |
             ${{ needs.gate.outputs.phase == 'take' && format('/take {0}', needs.gate.outputs.issue) || format('Issue #{0} has the plan-approved label. Continue as the chief-of-staff from docs/plans/GH-{0}.md on branch feature/GH-{0}-*: delegate, test, challenge, then open the PR with release-manager.', needs.gate.outputs.issue) }}
+
+            This is a non-interactive GitHub Actions run: nobody can answer you, and the run ends as soon as you end your turn.
+            Run every subagent in the foreground and wait for its result in the same turn. Never end your turn to "wait" for anything.
+            Finish in this run: either stop at a gate the process defines (needs-info, plan-review) with an issue comment,
+            or commit to feature/GH-<n>-<slug>, push, and open the PR with the delivery report.
           claude_args: "--max-turns 80"
           # Show Claude Code's own messages in the job log while we bring agent runs up. Secrets stay masked
           # by Actions; the log shows the agents' work on this repository. Revisit before real client data.
