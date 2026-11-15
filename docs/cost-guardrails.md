@@ -15,7 +15,7 @@ Cap: 100 USD per month across the billing account. Trial credit: 300 USD for 90 
 | Budget guard function and Pub/Sub | event driven | 0 within the free tier |
 | Env reporter function and Cloud Scheduler job | every 15 minutes, read only | 0 (3 free Scheduler jobs per billing account, invocations within the free tier) |
 | GitHub Actions | private repo on GitHub Pro: 3,000 included minutes a month; agent runs use the most | 0 within the allowance |
-| Vertex AI (Claude) | pay per token, staging and production only | depends on use, keep evals small |
+| Vertex AI (Gemini now, Claude later) | pay per token, staging and production only; Gemini is covered by the trial credit, Claude (Marketplace) is not | depends on use, keep evals small |
 | Logging | default retention, under 50 GiB | 0 |
 
 Expected baseline: 20 to 30 USD per month before AI tokens.
