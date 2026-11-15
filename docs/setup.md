@@ -19,9 +19,10 @@ Time: about an hour, mostly waiting. Nothing here gives an agent cloud credentia
 5. Download `outputs.env` (Cloud Shell, More, Download), or keep it in Cloud Shell for step 3.
 6. Check: Billing, Budgets and alerts shows `mini-philia-monthly` at 100 USD, and Cloud Run functions in the platform project shows `budget-guard`.
 
-## 3. Claude on Vertex AI
-1. In each of the staging and production projects: Vertex AI, Model Garden, search Claude, open the model you want, Enable, accept the terms.
-2. If enabling is refused on the free trial, upgrade the billing account to paid (remaining credit is kept), or start with Gemini through the same gateway (work item 09 makes the model a setting).
+## 3. AI models on Vertex AI
+The app starts on Gemini (ADR 0006): it needs no Marketplace agreement, the trial credit covers it, and the runtime account already has Vertex AI access. Nothing to do here during the trial.
+
+Later, to use Claude: upgrade the billing account to paid (Claude is sold through the Marketplace, which a free trial billing account cannot use, and trial credit does not cover it). Then in each of the staging and production projects: Vertex AI, Model Garden, open the Claude model, tick the terms, Agree. Then set `ai_provider = "claude"` in `infra/terraform/envs/<env>.tfvars` in a pull request.
 3. Note the exact model ID and location shown on the model card. Work item 09 uses them.
 
 ## 4. GitHub configuration

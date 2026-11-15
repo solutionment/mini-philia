@@ -163,6 +163,14 @@ resource "google_cloud_run_v2_service" "api" {
         name  = "VERTEX_LOCATION"
         value = var.vertex_location
       }
+      env {
+        name  = "AI_PROVIDER"
+        value = var.ai_provider
+      }
+      env {
+        name  = "AI_MODEL"
+        value = var.ai_model
+      }
       startup_probe {
         http_get {
           path = "/healthz"
