@@ -90,3 +90,6 @@ jobs:
           prompt: |
             ${{ needs.gate.outputs.phase == 'take' && format('/take {0}', needs.gate.outputs.issue) || format('Issue #{0} has the plan-approved label. Continue as the chief-of-staff from docs/plans/GH-{0}.md on branch feature/GH-{0}-*: delegate, test, challenge, then open the PR with release-manager.', needs.gate.outputs.issue) }}
           claude_args: "--max-turns 80"
+          # Show Claude Code's own messages in the job log while we bring agent runs up. Secrets stay masked
+          # by Actions; the log shows the agents' work on this repository. Revisit before real client data.
+          show_full_output: true
