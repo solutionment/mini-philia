@@ -1,0 +1,80 @@
+name: promote
+# Release to production: deploy exactly what staging already runs (or a named commit that staging ran
+# successfully), reusing the image built and tested for staging. Nothing is rebuilt.
+#
+# Running this workflow IS the production approval. GitHub only lets people with write access to the
+# repository start it, and only Solutionment staff have write access (docs/process/access-control.md).
+# Used when the repository is private on GitHub Free or Pro, where environment required reviewers are not
+# available. Set the repository variable PRODUCTION_APPROVAL=promote so deploy.yml stops after staging.
+on:
+  workflow_dispatch:
+    inputs:
+      sha:
+        description: Commit to release (leave empty to release what staging runs now)
+        required: false
+        default: ""
+permissions:
+  contents: read
+  id-token: write
+  pull-requests: read
+  deployments: read
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+jobs:
+  resolve:
+    if: ${{ github.ref == 'refs/heads/main' }}
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 10
+    outputs:
+      sha: ${{ steps.pick.outputs.sha }}
+      image: ${{ steps.image.outputs.image }}
+    steps:
+      - name: Pick the commit staging ran successfully
+        id: pick
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          WANTED: ${{ inputs.sha }}
+        run: |
+          set -euo pipefail
+          if [ -n "$WANTED" ] && ! [[ "$WANTED" =~ ^[0-9a-f]{40}$ ]]; then echo "sha must be a full 40 character commit id"; exit 1; fi
+          # Latest successful staging deployments, newest first.
+          found=""
+          for id_sha in $(gh api "repos/$REPO/deployments?environment=staging&per_page=30" --jq '.[] | "\(.id):\(.sha)"'); do
+            id="${id_sha%%:*}"; sha="${id_sha#*:}"
+            state="$(gh api "repos/$REPO/deployments/$id/statuses?per_page=1" --jq '.[0].state // ""')"
+            [ "$state" = "success" ] || continue
+            if [ -z "$WANTED" ] || [ "$sha" = "$WANTED" ]; then found="$sha"; break; fi
+          done
+          if [ -z "$found" ]; then echo "No successful staging deployment found${WANTED:+ for $WANTED}. Deploy it to staging first."; exit 1; fi
+          # Must be on main.
+          status="$(gh api "repos/$REPO/compare/$found...main" --jq .status)"
+          case "$status" in ahead|identical) ;; *) echo "$found is not on main ($status)"; exit 1;; esac
+          echo "sha=$found" >> "$GITHUB_OUTPUT"
+          echo "Releasing $found to production (passed staging)." >> "$GITHUB_STEP_SUMMARY"
+      - uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+          service_account: ${{ vars.GCP_DEPLOYER_SA }}
+      - uses: google-github-actions/setup-gcloud@v2
+      - name: Find the image staging tested
+        id: image
+        env:
+          REPO: ${{ vars.GCP_AR_REPO }}
+          SHA: ${{ steps.pick.outputs.sha }}
+        run: |
+          set -euo pipefail
+          digest="$(gcloud artifacts docker images describe "${REPO}/api:${SHA}" --format='value(image_summary.digest)')"
+          [ -n "$digest" ] || { echo "No image tagged $SHA in ${REPO}/api"; exit 1; }
+          echo "image=${REPO}/api@${digest}" >> "$GITHUB_OUTPUT"
+
+  production:
+    needs: resolve
+    uses: ./.github/workflows/deploy-env.yml
+    with:
+      environment: production
+      image: ${{ needs.resolve.outputs.image }}
+      sha: ${{ needs.resolve.outputs.sha }}

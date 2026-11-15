@@ -34,14 +34,27 @@ done <"$OUTPUTS"
 
 echo "== Environments"
 gh api -X PUT "repos/$REPO/environments/staging" >/dev/null
-# Production: a required reviewer (you) and main only. Required reviewers need a public repo or a paid plan.
-if ! gh api -X PUT "repos/$REPO/environments/production" --input - >/dev/null <<EOF
+# Production: main only, plus a human gate. Public repos get a required reviewer on the environment.
+# Private repos on GitHub Free or Pro cannot use required reviewers, so production is released with the
+# promote workflow (only people with write access can run it) and deploy.yml stops after staging.
+PRIVATE="$(gh api "repos/$REPO" --jq .private)"
+if [[ "$PRIVATE" == "true" ]]; then
+  gh api -X PUT "repos/$REPO/environments/production" --input - >/dev/null <<JSON
+{ "deployment_branch_policy": { "protected_branches": false, "custom_branch_policies": true } }
+JSON
+  gh variable set PRODUCTION_APPROVAL -R "$REPO" --body promote
+  echo "  private repo: production releases run from Actions > promote (PRODUCTION_APPROVAL=promote)"
+else
+  if ! gh api -X PUT "repos/$REPO/environments/production" --input - >/dev/null <<JSON
 { "reviewers": [ { "type": "User", "id": $ME_ID } ],
   "deployment_branch_policy": { "protected_branches": false, "custom_branch_policies": true } }
-EOF
-then
-  echo "  WARNING: could not add a required reviewer to production. On GitHub Free this needs a public repo." >&2
-  gh api -X PUT "repos/$REPO/environments/production" >/dev/null
+JSON
+  then
+    echo "  WARNING: could not add a required reviewer to production." >&2
+    gh api -X PUT "repos/$REPO/environments/production" >/dev/null
+  fi
+  gh variable delete PRODUCTION_APPROVAL -R "$REPO" >/dev/null 2>&1 || true
+  echo "  public repo: production waits for your approval inside the deploy run"
 fi
 gh api -X POST "repos/$REPO/environments/production/deployment-branch-policies" -f name=main -f type=branch >/dev/null 2>&1 || true
 for e in staging production; do
@@ -78,7 +91,7 @@ then
 fi
 
 echo "== Security features"
-gh api -X PATCH "repos/$REPO" --input - >/dev/null <<'EOF' || echo "  WARNING: some security settings need a public repo or a paid plan" >&2
+gh api -X PATCH "repos/$REPO" --input - >/dev/null <<'EOF' || echo "  NOTE: secret scanning and push protection on private repos need GitHub Advanced Security; CI runs gitleaks instead" >&2
 { "security_and_analysis": {
     "secret_scanning": { "status": "enabled" },
     "secret_scanning_push_protection": { "status": "enabled" } },

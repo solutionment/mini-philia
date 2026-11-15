@@ -22,15 +22,26 @@ jobs:
           npm ci
           npm run typecheck
           npm test
+      - name: Dependency vulnerabilities (critical blocks)
+        run: |
+          npm audit --omit=dev --audit-level=critical
+          (cd infra/budget-guard && npm audit --omit=dev --audit-level=critical)
+          (cd infra/env-reporter && npm audit --omit=dev --audit-level=critical)
       - name: Budget guard build and tests
         working-directory: infra/budget-guard
         run: |
           npm ci
           npm run build
           npm test
-      - name: Agent hook tests
+      - name: Env reporter build and tests
+        working-directory: infra/env-reporter
         run: |
-          files="$(find .claude -name '*.test.mjs')"
+          npm ci
+          npm run build
+          npm test
+      - name: Agent hook and script tests
+        run: |
+          files="$(find .claude scripts -name '*.test.mjs')"
           if [ -n "$files" ]; then node --test $files; fi
       - uses: hashicorp/setup-terraform@v3
         with: { terraform_version: 1.9.8 }
@@ -50,6 +61,17 @@ jobs:
         run: |
           if grep -rn $'—' --include='*.md' docs README.md CLAUDE.md; then echo "Em dash found"; exit 1; fi
       # Added by work items: pgTAP RLS tests on a Postgres service container, Playwright, axe, AI evals.
+
+  # Secret scanning that works on private repos without GitHub Advanced Security (free for personal accounts).
+  secrets:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
 
   codeql:
     # Code scanning is free on public repositories. On a private repo without GitHub Advanced Security this job is skipped.
