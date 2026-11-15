@@ -15,9 +15,9 @@ async function withServer(fn: (base: string) => Promise<void>) {
   }
 }
 
-test('healthz reports ok with version and environment', async () => {
+test('health reports ok with version and environment', async () => {
   await withServer(async (base) => {
-    const res = await fetch(`${base}/healthz`);
+    const res = await fetch(`${base}/health`);
     assert.equal(res.status, 200);
     assert.deepEqual(await res.json(), { status: 'ok', version: 'test', environment: 'test' });
   });

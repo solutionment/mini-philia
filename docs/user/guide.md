@@ -7,7 +7,7 @@ Mini Philia helps a nonprofit turn donor and gift spreadsheets into trusted fund
 - **Who can sign in:** sign in arrives with work item 04. Until then the app has no user screens.
 
 ## What you can do today
-- Check that the service is running: open the address followed by `/healthz`. It shows `"status": "ok"`, the version and the environment.
+- Check that the service is running: open the address followed by `/health`. It shows `"status": "ok"`, the version and the environment.
 
 ## Coming next
 The backlog in Studio lists what is planned: uploading donor files, cleaned records, quality checked releases of your numbers, a dashboard, and a plain language summary.
