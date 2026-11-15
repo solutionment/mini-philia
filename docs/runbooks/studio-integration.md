@@ -34,7 +34,19 @@ Nothing polls. GitHub pushes events to Actions (which start agents) and to Studi
 2. Re-run `bash infra/bootstrap/bootstrap.sh`. It creates the `studio-budget-push` subscription and prints the service account email.
 3. Paste that email into Studio, Build, Settings.
 
-## 4. Check it
-- Studio Settings shows a recent webhook, agent event and budget event.
+## 4. Deploy reports
+1. Copy the deploy report URL from Studio, Build, Settings.
+2. `gh variable set STUDIO_DEPLOY_REPORT_URL -R solutionment/mini-philia --body <url>`
+3. The next deploy reports each environment to Studio when it finishes. It signs the report with the job's GitHub OIDC token, so there is no secret to manage. A Studio outage never fails a deploy.
+
+## 5. Environment stats
+1. Copy the cloud stats URL from Studio, Build, Settings into `STUDIO_STATS_PUSH_URL` in `infra/bootstrap/config.env`.
+2. Re-run `bash infra/bootstrap/bootstrap.sh`. It deploys the `env-reporter` function (read only access to staging and production) and a Cloud Scheduler job that runs it every 15 minutes, then prints the reporter's email.
+3. Paste that email into Studio, Build, Settings. The Environments tab fills in within 15 minutes.
+
+What it reports per environment: the deployed revision, image and URL; requests, 5xx errors, p95 latency and instances for the API; database state, tier, disk used and CPU; file store size and object count; Claude tokens used. It never reads table contents or files.
+
+## 6. Check it
+- Studio Settings shows a recent webhook, agent event, budget event, deploy report and stats push.
 - Add `ready-for-agents` to the R0 item from the Studio board. The Live view should show the Chief of Staff start within a minute.
 - Flip Pause all agents, add a label again, and confirm the workflow comments that agents are paused.

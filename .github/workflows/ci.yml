@@ -28,6 +28,12 @@ jobs:
           npm ci
           npm run build
           npm test
+      - name: Env reporter build and tests
+        working-directory: infra/env-reporter
+        run: |
+          npm ci
+          npm run build
+          npm test
       - name: Agent hook tests
         run: |
           files="$(find .claude -name '*.test.mjs')"

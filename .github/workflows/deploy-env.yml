@@ -18,6 +18,10 @@ jobs:
       run:
         working-directory: infra/terraform
     steps:
+      - name: Record start time
+        id: start
+        working-directory: .
+        run: echo "at=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
       - uses: actions/checkout@v4
       - uses: google-github-actions/auth@v2
         with:
@@ -41,6 +45,7 @@ jobs:
       - name: Terraform apply
         run: terraform apply -input=false tfplan
       - name: Smoke check
+        id: smoke
         run: |
           url="$(terraform output -raw api_url)"
           for i in $(seq 1 10); do
@@ -49,3 +54,31 @@ jobs:
             sleep 6
           done
           echo "Smoke check failed: $body"; exit 1
+
+      # Tells SolutionIQ Studio what was deployed. Proves itself with this job's GitHub OIDC token
+      # (Studio checks repository, environment, workflow and ref), so no shared secret is needed.
+      # Never fails the deploy: a Studio outage must not block a release.
+      - name: Report deployment to Studio
+        if: ${{ always() && vars.STUDIO_DEPLOY_REPORT_URL != '' }}
+        continue-on-error: true
+        env:
+          REPORT_URL: ${{ vars.STUDIO_DEPLOY_REPORT_URL }}
+          ENVIRONMENT: ${{ inputs.environment }}
+          IMAGE: ${{ inputs.image }}
+          STARTED_AT: ${{ steps.start.outputs.at }}
+          JOB_STATUS: ${{ job.status }}
+          SMOKE: ${{ steps.smoke.outcome }}
+        run: |
+          set -euo pipefail
+          url="$(terraform output -raw api_url 2>/dev/null || true)"
+          case "$SMOKE" in success) smoke=passed;; failure) smoke=failed;; *) smoke=skipped;; esac
+          if [ "$JOB_STATUS" = "success" ]; then status=success; else status=failure; fi
+          token="$(curl -fsS -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+            "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=$(jq -rn --arg u "$REPORT_URL" '$u|@uri')" | jq -r .value)"
+          body="$(jq -n --arg env "$ENVIRONMENT" --arg sha "$GITHUB_SHA" --arg image "$IMAGE" --arg url "$url" \
+            --arg status "$status" --arg smoke "$smoke" --argjson run "$GITHUB_RUN_ID" \
+            --arg started "$STARTED_AT" --arg finished "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            '{v:1, environment:$env, sha:$sha, image:$image, url:(if $url=="" then null else $url end),
+              status:$status, smoke:$smoke, run_id:$run, started_at:$started, finished_at:$finished}')"
+          curl -fsS --max-time 15 -X POST "$REPORT_URL" -H "Authorization: Bearer $token" \
+            -H "Content-Type: application/json" -d "$body" && echo "Reported to Studio: $status, smoke $smoke"

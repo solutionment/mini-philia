@@ -13,6 +13,7 @@ Cap: 100 USD per month across the billing account. Trial credit: 300 USD for 90 
 | Cloud Storage | tfstate and app buckets, standard, a few GB | under 1 USD |
 | Secret Manager | a handful of secrets | under 1 USD |
 | Budget guard function and Pub/Sub | event driven | 0 within the free tier |
+| Env reporter function and Cloud Scheduler job | every 15 minutes, read only | 0 (3 free Scheduler jobs per billing account, invocations within the free tier) |
 | Vertex AI (Claude) | pay per token, staging and production only | depends on use, keep evals small |
 | Logging | default retention, under 50 GiB | 0 |
 

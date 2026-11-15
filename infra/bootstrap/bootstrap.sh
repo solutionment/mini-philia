@@ -62,7 +62,8 @@ gcloud services enable --project="$PLATFORM" \
   iam.googleapis.com iamcredentials.googleapis.com sts.googleapis.com cloudresourcemanager.googleapis.com \
   serviceusage.googleapis.com artifactregistry.googleapis.com storage.googleapis.com pubsub.googleapis.com \
   cloudfunctions.googleapis.com run.googleapis.com cloudbuild.googleapis.com eventarc.googleapis.com \
-  logging.googleapis.com billingbudgets.googleapis.com cloudbilling.googleapis.com sqladmin.googleapis.com
+  logging.googleapis.com billingbudgets.googleapis.com cloudbilling.googleapis.com sqladmin.googleapis.com \
+  monitoring.googleapis.com cloudscheduler.googleapis.com
 for e in "${ENVS[@]}"; do
   gcloud services enable --project="$(env_project "$e")" \
     iam.googleapis.com iamcredentials.googleapis.com cloudresourcemanager.googleapis.com serviceusage.googleapis.com \
@@ -212,6 +213,47 @@ if [[ -n "${STUDIO_BUDGET_PUSH_URL:-}" ]]; then
       --push-auth-token-audience="$STUDIO_BUDGET_PUSH_URL" --ack-deadline=30 --message-retention-duration=1d
   fi
   echo "Enter this push service account email in Studio Build > Settings: $PUSH_SA"
+fi
+
+# ---------------------------------------------------------------- environment stats reporter
+# Read only: every 15 minutes it reads Cloud Run, Cloud SQL, Storage and Vertex AI stats for each
+# environment and, when STUDIO_STATS_PUSH_URL is set, pushes them to Studio signed with Google OIDC.
+log "Environment stats reporter"
+REPORTER_SA="env-reporter@${PLATFORM}.iam.gserviceaccount.com"
+gcloud iam service-accounts describe "$REPORTER_SA" --project="$PLATFORM" >/dev/null 2>&1 ||
+  gcloud iam service-accounts create env-reporter --project="$PLATFORM" --display-name="Reads environment stats for Studio"
+ENV_PROJECTS=()
+for e in "${ENVS[@]}"; do
+  P="$(env_project "$e")"; ENV_PROJECTS+=("${e}:${P}")
+  for role in roles/monitoring.viewer roles/run.viewer roles/cloudsql.viewer; do bind "$P" "serviceAccount:$REPORTER_SA" "$role"; done
+done
+# Monitoring, Run and SQL Admin reads are billed for quota to the caller's project.
+bind "$PLATFORM" "serviceAccount:$REPORTER_SA" roles/serviceusage.serviceUsageConsumer
+
+gcloud functions deploy env-reporter --project="$PLATFORM" --region="$REGION" --gen2 --runtime=nodejs22 \
+  --source="$REPO_ROOT/infra/env-reporter" --entry-point=reportStats --trigger-http --no-allow-unauthenticated \
+  --service-account="$REPORTER_SA" \
+  --build-service-account="projects/${PLATFORM}/serviceAccounts/builder@${PLATFORM}.iam.gserviceaccount.com" \
+  --set-env-vars="^;^ENV_PROJECTS=$(IFS=,; echo "${ENV_PROJECTS[*]}");REGION=${REGION};STUDIO_STATS_PUSH_URL=${STUDIO_STATS_PUSH_URL:-}" \
+  --memory=256Mi --max-instances=1 --timeout=60s --quiet
+REPORTER_URL="$(gcloud functions describe env-reporter --project="$PLATFORM" --region="$REGION" --gen2 --format='value(serviceConfig.uri)')"
+# Cloud Scheduler calls the private function as the reporter account.
+gcloud run services add-iam-policy-binding env-reporter --project="$PLATFORM" --region="$REGION" \
+  --member="serviceAccount:$REPORTER_SA" --role=roles/run.invoker >/dev/null
+if gcloud scheduler jobs describe env-reporter --project="$PLATFORM" --location="$REGION" >/dev/null 2>&1; then
+  gcloud scheduler jobs update http env-reporter --project="$PLATFORM" --location="$REGION" \
+    --schedule="*/15 * * * *" --uri="$REPORTER_URL" --http-method=POST \
+    --oidc-service-account-email="$REPORTER_SA" --oidc-token-audience="$REPORTER_URL" >/dev/null
+else
+  gcloud scheduler jobs create http env-reporter --project="$PLATFORM" --location="$REGION" \
+    --schedule="*/15 * * * *" --uri="$REPORTER_URL" --http-method=POST \
+    --oidc-service-account-email="$REPORTER_SA" --oidc-token-audience="$REPORTER_URL" \
+    --description="Push environment stats to SolutionIQ Studio" >/dev/null
+fi
+if [[ -n "${STUDIO_STATS_PUSH_URL:-}" ]]; then
+  echo "Enter this stats reporter email in Studio Build > Settings: $REPORTER_SA"
+else
+  echo "STUDIO_STATS_PUSH_URL is empty: stats are collected and logged, not pushed. Set it and re-run to connect Studio."
 fi
 
 # ---------------------------------------------------------------- outputs
