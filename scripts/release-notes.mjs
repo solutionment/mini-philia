@@ -25,7 +25,13 @@ export function extractSection(body, title = 'Delivery report') {
     out.push(line);
   }
   // Drop template comments so empty templates read as empty.
-  const text = out.join('\n').replace(/<!--[\s\S]*?-->/g, '').trim();
+  let text = out.join('\n');
+  let previous;
+  do {
+    previous = text;
+    text = text.replace(/<!--[\s\S]*?-->/g, '');
+  } while (text !== previous);
+  text = text.trim();
   const meaningful = text.split('\n').some((l) => l.trim() && !/^###\s/.test(l.trim()));
   return meaningful ? text.slice(0, MAX_REPORT) : null;
 }
