@@ -132,10 +132,12 @@ for e in "${ENVS[@]}"; do
     bind "$P" "$RUNTIME" "$role"
   done
 
-  # Only jobs that run in the GitHub environment of the same name can become this deployer.
+  # Only jobs that run in the GitHub environment of the same name can become this deployer. The pool's
+  # provider already accepts tokens from this one repository only (attribute condition above), so matching
+  # on the environment claim is enough, and it does not depend on GitHub's subject string format.
   gcloud iam service-accounts add-iam-policy-binding "deployer@${P}.iam.gserviceaccount.com" --project="$P" \
     --role=roles/iam.workloadIdentityUser \
-    --member="principal://iam.googleapis.com/projects/${PLATFORM_NUMBER}/locations/global/workloadIdentityPools/${POOL}/subject/repo:${REPO_FULL}:environment:${e}" >/dev/null
+    --member="principalSet://iam.googleapis.com/projects/${PLATFORM_NUMBER}/locations/global/workloadIdentityPools/${POOL}/attribute.environment/${e}" >/dev/null
 
   gcloud storage buckets add-iam-policy-binding "gs://${PROJECT_PREFIX}-tfstate-${e}-${PROJECT_SUFFIX}" \
     --member="$DEPLOYER" --role=roles/storage.objectAdmin >/dev/null
