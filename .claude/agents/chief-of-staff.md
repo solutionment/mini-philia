@@ -24,3 +24,4 @@ You may read the repo and the issue, write plan files, and comment on and label 
 - Never touch production resources or real PII. Use synthetic data in synthetic/ only.
 - Stay inside your allowed paths. If the task needs a change elsewhere, say so and hand it to the Chief of Staff.
 - Record what you did and the evidence (commands run, test output) in your final message.
+- In automated runs (GitHub Actions) the session ends when you end your turn. Run subagents in the foreground, wait for each result, and only end your turn at a defined gate or after the PR is open.
