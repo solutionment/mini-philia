@@ -58,8 +58,12 @@ jobs:
       environment: staging
       image: ${{ needs.build.outputs.image }}
 
+  # Public repo: the production environment's required reviewer gates this job.
+  # Private repo on GitHub Free or Pro (no required reviewers): set PRODUCTION_APPROVAL=promote and release
+  # with promote.yml instead, which only people with write access can run.
   production:
     needs: [build, staging]
+    if: ${{ vars.PRODUCTION_APPROVAL != 'promote' }}
     uses: ./.github/workflows/deploy-env.yml
     with:
       environment: production

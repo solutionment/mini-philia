@@ -13,12 +13,12 @@ Solutionment provides and pays for the engineering resources (GitHub, the Claude
 | Mark a work item agent eligible | Yes | No |
 | Start agents, approve plans, cancel runs, pause agents | Yes, with the product role the control needs | No |
 | Connect a repository, manage tokens and reporter settings, resync | Yes, product owner or admin | No |
-| Review and merge pull requests in GitHub | Yes, organization members with write access | No GitHub write access |
-| Approve a production release in GitHub | Yes, the `production` environment reviewers | No |
+| Review and merge pull requests in GitHub | Yes, collaborators with write access | No GitHub write access |
+| Release to production | Yes: run the promote workflow (private repo) or approve the `production` environment (public repo) | No |
 | Change Google Cloud | Only through the deploy workflow; bootstrap by the platform owner | No |
 
 ## How it is enforced
 - **Studio** checks the staff rule on its server for every build action, using the verified email on the sign in account (not anything a user can edit). Being an app admin or a product owner is not enough without a `@solutionment.com` account. Refused attempts are recorded in the control history.
-- **GitHub**: only Solutionment staff are members of the `solutionment` organization with write access. The `main` ruleset requires a pull request and a code owner approval, and the `production` environment requires a staff reviewer. Clients are never given write access to repositories.
+- **GitHub**: repositories live under the `solutionment` account (GitHub Pro, private). Only Solutionment staff are collaborators with write access; clients get read access at most, or none. The `main` ruleset requires a pull request and a code owner approval. Production is released by running the promote workflow, which only people with write access can start (ADR 0005).
 - **Agents** start only from a label added by someone with write access, or by Studio's GitHub App after Studio's staff check (`agent-run.yml`).
 - **Google Cloud**: no client accounts. The deploy workflow is the only path to change staging or production.
