@@ -48,7 +48,7 @@ With the repository private on GitHub Pro, production is released by Actions > p
 2. Re-run `bash infra/bootstrap/bootstrap.sh`. It deploys the `env-reporter` function (read only access to staging and production) and a Cloud Scheduler job that runs it every 15 minutes, then prints the reporter's email.
 3. Paste that email into Studio, Build, Settings. The Environments tab fills in within 15 minutes.
 
-What it reports per environment: the deployed revision, image and URL; requests, 5xx errors, p95 latency and instances for the API; database state, tier, disk used and CPU; file store size and object count; Claude tokens used. It never reads table contents or files.
+What it reports per environment: the deployed revision, image and URL; requests, 5xx errors, p95 latency and instances for the API; database state, tier, disk used and CPU; file store size and object count; AI model tokens used. It never reads table contents or files.
 
 ## 6. Check it
 - Studio Settings shows a recent webhook, agent event, budget event, deploy report and stats push.
