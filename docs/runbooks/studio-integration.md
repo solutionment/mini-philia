@@ -40,6 +40,9 @@ Nothing polls. GitHub pushes events to Actions (which start agents) and to Studi
 3. The next deploy reports each environment to Studio when it finishes. It signs the report with the job's GitHub OIDC token, so there is no secret to manage. A Studio outage never fails a deploy.
 4. Each report carries the release report: what changed since the last deploy of that environment (with each pull request's delivery report), the app address, the health check and the user guide. It also appears in the run summary in GitHub. Studio shows it under Build, Releases.
 
+### Private repository
+With the repository private on GitHub Pro, production is released by Actions > promote > Run workflow (ADR 0005). Studio's production link should point there.
+
 ## 5. Environment stats
 1. Copy the cloud stats URL from Studio, Build, Settings into `STUDIO_STATS_PUSH_URL` in `infra/bootstrap/config.env`.
 2. Re-run `bash infra/bootstrap/bootstrap.sh`. It deploys the `env-reporter` function (read only access to staging and production) and a Cloud Scheduler job that runs it every 15 minutes, then prints the reporter's email.

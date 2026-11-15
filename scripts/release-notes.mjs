@@ -5,7 +5,7 @@
 // Read only: uses the workflow's GITHUB_TOKEN to read deployments, commits and pull requests.
 //
 // Usage (in deploy-env.yml):
-//   node scripts/release-notes.mjs --environment production --sha <sha> --url <app url or ""> --smoke passed > release.json
+//   node scripts/release-notes.mjs --environment production --sha <sha> [--previous-sha <sha>] --url <app url or ""> --smoke passed > release.json
 import { readFileSync } from 'node:fs';
 
 const MAX_REPORT = 20000;
@@ -121,9 +121,13 @@ async function main() {
   const smoke = arg('smoke') || 'skipped';
   let prev = null;
   let changes = [];
+  const given = arg('previous-sha');
   try {
-    prev = await previousSha(repo, environment, sha);
-    changes = await mergedPulls(repo, prev, sha);
+    // Prefer what the environment itself reported running before this deploy; GitHub deployment records
+    // carry the workflow's commit, which differs from the released commit on promote runs.
+    prev = /^[0-9a-f]{40}$/.test(given) ? given : await previousSha(repo, environment, sha);
+    // Same commit as before means a redeploy: nothing new to list.
+    changes = prev === sha ? [] : await mergedPulls(repo, prev, sha);
   } catch (e) {
     console.error(`release-notes: could not list changes: ${e.message}`);
   }
