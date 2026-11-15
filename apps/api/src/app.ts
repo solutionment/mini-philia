@@ -9,7 +9,8 @@ export interface AppConfig {
 export function createHandler(config: AppConfig) {
   return (req: IncomingMessage, res: ServerResponse) => {
     const url = new URL(req.url ?? '/', 'http://localhost');
-    if (req.method === 'GET' && url.pathname === '/healthz') {
+    // Not /healthz: Cloud Run reserves some paths ending in z and answers them with its own 404.
+    if (req.method === 'GET' && url.pathname === '/health') {
       return send(res, 200, { status: 'ok', version: config.version, environment: config.environment });
     }
     return send(res, 404, { error: 'not_found' });

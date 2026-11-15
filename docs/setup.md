@@ -37,7 +37,7 @@ This creates labels, repo and environment variables, the `staging` and `producti
 Review `.claude/settings.proposed.json`, then replace `.claude/settings.json` with it in a PR you open yourself. The agents are blocked from editing their own controls, which is why this step is yours.
 
 ## 6. First run
-1. In GitHub, Actions, deploy, Run workflow on main. The deploy workflow builds the image, creates Cloud SQL and Cloud Run in staging (about 10 minutes the first time), smoke checks `/healthz`, then waits for you to approve production.
+1. In GitHub, Actions, deploy, Run workflow on main. The deploy workflow builds the image, creates Cloud SQL and Cloud Run in staging (about 10 minutes the first time), smoke checks `/health`, then waits for you to approve production.
 2. `scripts/seed-backlog.sh <org>/mini-philia` to create the first nine work items.
 3. Take item 01 interactively in Claude Code: `/take 1`. Watch each agent step. Then try item 02 through the label: add `ready-for-agents` and watch the agent-run workflow.
 

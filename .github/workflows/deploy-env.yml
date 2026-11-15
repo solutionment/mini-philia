@@ -71,7 +71,7 @@ jobs:
         run: |
           url="$(terraform output -raw api_url)"
           for i in $(seq 1 10); do
-            body="$(curl -fsS "$url/healthz" || true)"
+            body="$(curl -fsS "$url/health" || true)"
             if echo "$body" | grep -q "\"version\":\"${DEPLOY_SHA}\""; then echo "ok: $body"; echo "Smoke ok: $url" >> "$GITHUB_STEP_SUMMARY"; exit 0; fi
             sleep 6
           done
