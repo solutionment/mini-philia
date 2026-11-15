@@ -12,7 +12,7 @@ Mini Philia is the pilot app for the Solutionment Studio Suite: a small, multi-t
 7. **Cost is a requirement.** Budget is 100 USD per month across all projects. Follow docs/cost-guardrails.md. Nothing with an idle cost ships without an ADR.
 
 ## Stack
-TypeScript on Node 22 (web, API, worker), SQL (Cloud SQL for PostgreSQL 16), Terraform for Google Cloud, GitHub Actions, Google Cloud (Cloud Run, Cloud SQL, Cloud Storage, Secret Manager, Artifact Registry, Vertex AI with Claude). Python only by ADR.
+TypeScript on Node 22 (web, API, worker), SQL (Cloud SQL for PostgreSQL 16), Terraform for Google Cloud, GitHub Actions, Google Cloud (Cloud Run, Cloud SQL, Cloud Storage, Secret Manager, Artifact Registry, Vertex AI: Gemini during the trial, Claude through the same AI gateway once billing is upgraded, see ADR 0006). Python only by ADR.
 
 ## Layout
 See README.md. Agents live in `.claude/agents`, procedures in `.claude/skills`, commands in `.claude/commands`.
