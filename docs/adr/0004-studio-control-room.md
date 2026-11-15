@@ -27,6 +27,11 @@ Two more read only feeds, both pushed to Studio and both proven without shared s
 
 Studio still holds no Google Cloud credentials and never calls Google Cloud. GitHub delivery stats come from the existing App permissions; no Contents permission is added.
 
+## Update 2026-11-15: staff only controls, delivery and release reports
+- Only Solutionment staff (verified `@solutionment.com` sign in) can start, steer or configure work in Studio, checked on Studio's server. Clients keep full visibility and can create work items. See `docs/process/access-control.md`.
+- Every pull request carries a **Delivery report** section written for users. Each deploy composes a **release report** (`scripts/release-notes.mjs`): the changes since the environment's last successful deploy with their delivery reports, the app address, the health check and `docs/user/guide.md`. It travels in the signed deploy report, and Studio shows it under Releases and in product exports.
+- The deploy workflow gains read only `pull-requests` and `deployments` permissions to build the release report.
+
 ## Consequences
 - The agent-run workflow refuses to start when `AGENTS_PAUSED` is `true`.
 - Studio data is engineering activity only, stored in Lovable Cloud (Supabase), outside Google Cloud. No donor data or secrets flow to it.

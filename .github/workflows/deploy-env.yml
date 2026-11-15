@@ -9,6 +9,9 @@ on:
 permissions:
   contents: read
   id-token: write
+  # Read only, for the release report (merged pull requests and previous deployments).
+  pull-requests: read
+  deployments: read
 jobs:
   apply:
     runs-on: ubuntu-latest
@@ -58,6 +61,22 @@ jobs:
       # Tells SolutionIQ Studio what was deployed. Proves itself with this job's GitHub OIDC token
       # (Studio checks repository, environment, workflow and ref), so no shared secret is needed.
       # Never fails the deploy: a Studio outage must not block a release.
+      # Release report: every change merged since this environment's last successful deploy, with each
+      # pull request's delivery report and the user guide. Read only. Never fails the deploy.
+      - name: Compose release report
+        if: ${{ always() && vars.STUDIO_DEPLOY_REPORT_URL != '' }}
+        continue-on-error: true
+        working-directory: .
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          ENVIRONMENT: ${{ inputs.environment }}
+          SMOKE: ${{ steps.smoke.outcome }}
+        run: |
+          url="$(terraform -chdir=infra/terraform output -raw api_url 2>/dev/null || true)"
+          case "$SMOKE" in success) smoke=passed;; failure) smoke=failed;; *) smoke=skipped;; esac
+          node scripts/release-notes.mjs --environment "$ENVIRONMENT" --sha "$GITHUB_SHA" --url "$url" --smoke "$smoke" > "$RUNNER_TEMP/release.json"
+          { echo "### Release report: $ENVIRONMENT"; jq -r '.notes_markdown' "$RUNNER_TEMP/release.json"; } >> "$GITHUB_STEP_SUMMARY"
+
       - name: Report deployment to Studio
         if: ${{ always() && vars.STUDIO_DEPLOY_REPORT_URL != '' }}
         continue-on-error: true
@@ -80,5 +99,8 @@ jobs:
             --arg started "$STARTED_AT" --arg finished "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
             '{v:1, environment:$env, sha:$sha, image:$image, url:(if $url=="" then null else $url end),
               status:$status, smoke:$smoke, run_id:$run, started_at:$started, finished_at:$finished}')"
+          if [ -s "$RUNNER_TEMP/release.json" ] && jq -e . "$RUNNER_TEMP/release.json" >/dev/null 2>&1; then
+            body="$(jq --slurpfile rel "$RUNNER_TEMP/release.json" '. + {release: $rel[0]}' <<<"$body")"
+          fi
           curl -fsS --max-time 15 -X POST "$REPORT_URL" -H "Authorization: Bearer $token" \
             -H "Content-Type: application/json" -d "$body" && echo "Reported to Studio: $status, smoke $smoke"

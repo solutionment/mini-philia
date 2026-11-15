@@ -38,6 +38,7 @@ Nothing polls. GitHub pushes events to Actions (which start agents) and to Studi
 1. Copy the deploy report URL from Studio, Build, Settings.
 2. `gh variable set STUDIO_DEPLOY_REPORT_URL -R solutionment/mini-philia --body <url>`
 3. The next deploy reports each environment to Studio when it finishes. It signs the report with the job's GitHub OIDC token, so there is no secret to manage. A Studio outage never fails a deploy.
+4. Each report carries the release report: what changed since the last deploy of that environment (with each pull request's delivery report), the app address, the health check and the user guide. It also appears in the run summary in GitHub. Studio shows it under Build, Releases.
 
 ## 5. Environment stats
 1. Copy the cloud stats URL from Studio, Build, Settings into `STUDIO_STATS_PUSH_URL` in `infra/bootstrap/config.env`.
