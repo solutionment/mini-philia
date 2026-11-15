@@ -79,6 +79,12 @@ async function safe<T>(fn: () => Promise<T>): Promise<T | null> {
 
 const lastSegment = (s: unknown) => (typeof s === 'string' && s ? s.split('/').pop() ?? null : null);
 const round = (n: number | null, digits = 0) => (n === null ? null : Number(n.toFixed(digits)));
+/** Google returns RFC 3339 times with up to nanoseconds; Studio expects standard ISO 8601 (milliseconds). */
+export const isoTime = (s: unknown): string | null => {
+  if (typeof s !== 'string' || !s) return null;
+  const d = new Date(s.replace(/(\.\d{3})\d+/, '$1'));
+  return Number.isNaN(d.getTime()) ? null : d.toISOString();
+};
 
 export async function collectEnvironment(t: EnvTarget, region: string, request: Requester, now = new Date()): Promise<EnvStats> {
   const n = names(t);
@@ -98,7 +104,7 @@ export async function collectEnvironment(t: EnvTarget, region: string, request: 
     latest_revision: lastSegment(svc.latestReadyRevision),
     image: svc.template?.containers?.[0]?.image ?? null,
     ready: svc.terminalCondition?.state === 'CONDITION_SUCCEEDED',
-    last_deployed_at: svc.updateTime ?? null,
+    last_deployed_at: isoTime(svc.updateTime),
     min_instances: svc.template?.scaling?.minInstanceCount ?? 0,
     max_instances: svc.template?.scaling?.maxInstanceCount ?? null,
     requests_24h: requests ?? 0,

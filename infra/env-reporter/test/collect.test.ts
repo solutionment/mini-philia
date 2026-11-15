@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { collectEnvironment, scalar, parseTargets, monitoringUrl, metricQueries, type Requester } from '../src/collect.ts';
+import { collectEnvironment, scalar, parseTargets, monitoringUrl, metricQueries, isoTime, type Requester } from '../src/collect.ts';
 
 const t = { environment: 'staging' as const, project: 'sm-pilot-staging-x' };
 const point = (v: object) => ({ timeSeries: [{ points: [{ value: v }] }] });
@@ -30,7 +30,7 @@ test('collects a deployed environment', async () => {
       name: 'projects/p/locations/r/services/api', uri: 'https://api-xyz.a.run.app',
       latestReadyRevision: 'projects/p/locations/r/services/api/revisions/api-00003-abc',
       template: { containers: [{ image: 'us-central1-docker.pkg.dev/p/apps/api@sha256:1' }], scaling: { maxInstanceCount: 2 } },
-      terminalCondition: { state: 'CONDITION_SUCCEEDED' }, updateTime: '2026-11-15T10:00:00Z',
+      terminalCondition: { state: 'CONDITION_SUCCEEDED' }, updateTime: '2026-11-15T10:00:00.123456789Z',
     };
     if (url.includes('sqladmin')) return { name: 'mini-philia-staging', state: 'RUNNABLE', databaseVersion: 'POSTGRES_16', settings: { tier: 'db-f1-micro', activationPolicy: 'ALWAYS', dataDiskSizeGb: '10' } };
     const f = new URL(url).searchParams.get('filter') ?? '';
@@ -48,6 +48,7 @@ test('collects a deployed environment', async () => {
   const s = await collectEnvironment(t, 'us-central1', request);
   assert.equal(s.service?.latest_revision, 'api-00003-abc');
   assert.equal(s.service?.ready, true);
+  assert.equal(s.service?.last_deployed_at, '2026-11-15T10:00:00.123Z');
   assert.equal(s.service?.requests_24h, 120);
   assert.equal(s.service?.errors_5xx_24h, 3);
   assert.equal(s.service?.latency_p95_ms, 87.5);
@@ -63,4 +64,11 @@ test('an environment not deployed yet reports nulls instead of failing', async (
   assert.equal(s.service, null);
   assert.equal(s.database, null);
   assert.equal(s.storage.total_bytes, null);
+});
+
+test('isoTime trims nanoseconds and rejects junk', () => {
+  assert.equal(isoTime('2026-11-15T10:00:00.123456789Z'), '2026-11-15T10:00:00.123Z');
+  assert.equal(isoTime('2026-11-15T10:00:00Z'), '2026-11-15T10:00:00.000Z');
+  assert.equal(isoTime('not a date'), null);
+  assert.equal(isoTime(undefined), null);
 });
